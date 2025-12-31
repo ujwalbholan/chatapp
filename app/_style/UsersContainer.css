@@ -1,0 +1,35 @@
+.users-container {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.users-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Scrollbar */
+.users-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.users-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.users-container::-webkit-scrollbar-thumb {
+  background: var(--border, #e0e0e0);
+  border-radius: 3px;
+}
+
+.users-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #888);
+}
+
+@media (max-width: 768px) {
+  .users-container {
+    max-height: 300px;
+  }
+}

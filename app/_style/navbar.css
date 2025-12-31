@@ -1,0 +1,35 @@
+.navbar {
+  display: flex; 
+  justify-content: space-between; 
+  align-items: center; 
+  padding: 1rem 2rem; 
+  background-color: var(--background); 
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); 
+}
+
+.navbar-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--foreground);
+}
+
+.navbar-btn {
+  padding: 0.5rem 1rem;
+  background-color: var(--primary);
+  color: var(--foreground);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.navbar-btn:hover {
+  background-color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .navbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}

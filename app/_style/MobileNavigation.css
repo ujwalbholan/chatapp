@@ -1,0 +1,24 @@
+.mobile-back-btn {
+  padding: 16px 20px;
+  background: var(--secondary);
+  color: var(--foreground);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.mobile-back-btn:hover {
+  background: var(--accent);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .mobile-back-btn {
+    padding: 14px 16px;
+    font-size: 15px;
+  }
+}

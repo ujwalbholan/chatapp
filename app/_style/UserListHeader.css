@@ -1,0 +1,40 @@
+.user-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.user-list-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.new-user-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary, #0070f3);
+  color: white;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.new-user-btn:hover {
+  background: var(--accent, #0051cc);
+  transform: scale(1.05);
+}
+
+.new-user-btn:active {
+  transform: scale(0.95);
+}
