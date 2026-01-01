@@ -19,7 +19,7 @@ const UserList = ({ onUserSelect, selectedUserId, onCreateUser, users }) => {
     <div className="user-list">
       <UserListHeader 
         userCount={users.length} 
-        onCreateUser={onCreateUser} 
+        onCreateUser={onCreateUser} // This should work now
       />
       <UserSearch 
         searchTerm={searchTerm} 
