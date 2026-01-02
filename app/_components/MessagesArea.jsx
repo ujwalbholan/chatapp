@@ -8,7 +8,8 @@ const MessagesArea = ({
   showEmojiPickerFor,
   onToggleEmojiPicker,
   onAddReaction,
-  emojis
+  emojis,
+  isLoading,
 }) => {
   const messagesEndRef = useRef(null);
 
@@ -20,19 +21,50 @@ const MessagesArea = ({
     scrollToBottom();
   }, [messages]);
 
+  const effectiveLocalUserId =
+    localUserId ||
+    (() => {
+      let storedId = localStorage.getItem("chat_local_user_id");
+      if (!storedId) {
+        storedId = `local_${Date.now()}_${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        localStorage.setItem("chat_local_user_id", storedId);
+      }
+      return storedId;
+    })();
+
+  if (isLoading) {
+    return (
+      <div className="messages-area loading">
+        <div className="loading-spinner">Loading messages...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="messages-area">
-      {messages.map((message) => (
-        <MessageBubble
-          key={message.id}
-          message={message}
-          localUserId={localUserId}
-          isEmojiPickerOpen={showEmojiPickerFor === message.id}
-          onToggleEmojiPicker={() => onToggleEmojiPicker(showEmojiPickerFor === message.id ? null : message.id)}
-          onAddReaction={(emoji) => onAddReaction(message.id, emoji)}
-          emojis={emojis}
-        />
-      ))}
+      {messages.length === 0 ? (
+        <div className="empty-messages">
+          <p>No messages yet. Start a conversation!</p>
+        </div>
+      ) : (
+        messages.map((message) => (
+          <MessageBubble
+            key={`${message.id}-${message.timestamp}`}
+            message={message}
+            localUserId={effectiveLocalUserId}
+            isEmojiPickerOpen={showEmojiPickerFor === message.id}
+            onToggleEmojiPicker={() =>
+              onToggleEmojiPicker(
+                showEmojiPickerFor === message.id ? null : message.id
+              )
+            }
+            onAddReaction={(emoji) => onAddReaction(message.id, emoji)}
+            emojis={emojis}
+          />
+        ))
+      )}
       <div ref={messagesEndRef} className="messages-end" />
     </div>
   );

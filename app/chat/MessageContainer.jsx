@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback,useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import ChatHeader from "../_components/ChatHeader";
 import MessagesArea from "../_components/MessagesArea";
 import MessageInput from "../_components/MessageInput";
@@ -16,7 +16,9 @@ const MessageContainer = ({ selectedUserId, onUserSwitch, users }) => {
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedUsersCount, setConnectedUsersCount] = useState(0);
+
   const pendingMessagesRef = useRef(new Map());
+  const unsubscribeRef = useRef(null);
 
   const { isTyping, startTyping, stopTyping } = useTypingIndicator();
 
@@ -29,120 +31,124 @@ const MessageContainer = ({ selectedUserId, onUserSwitch, users }) => {
     clearMessages,
     addReaction,
     loadMessages,
+    saveMessages, 
   } = useMessages(selectedUserId, users, STORAGE_KEY);
 
-  // Load messages when user changes
   useEffect(() => {
     if (selectedUserId) {
       loadMessages();
     }
   }, [selectedUserId, loadMessages]);
 
-  // Setup WebSocket subscription for this user
   useEffect(() => {
     if (!selectedUserId) return;
 
-    let unsubscribe;
 
-    const setupWebSocket = () => {
-      const callbacks = {
-        onMessage: (data) => {
-          console.log(`WebSocket message for ${selectedUserId}:`, data);
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
 
-          if (data.content) {
-            // Check if this is an echo of a message we sent
-            const pendingMessageId = data.originalMessageId || data.messageId;
-            const pending = pendingMessagesRef.current.get(pendingMessageId);
+    pendingMessagesRef.current.clear();
 
-            if (pending) {
-              // Update optimistic message
-              updateMessage(pending.messageId, {
-                isOptimistic: false,
-                sendingIndicator: false,
-              });
+    unsubscribeRef.current = webSocketManager.subscribe(selectedUserId, {
+      onMessage: (data) => {
 
-              // Remove from pending
-              pendingMessagesRef.current.delete(pendingMessageId);
-            }
+        if (data && data.content) {
+          const pendingMessageId = data.originalMessageId || data.messageId;
+          const pending = pendingMessageId
+            ? pendingMessagesRef.current.get(pendingMessageId)
+            : null;
 
-            // Add echo message (if it's an echo, not the original)
-            if (data.echoed || data.sender !== "You") {
-              const echoMessage = {
-                id: Date.now(),
-                sender: "Echo Server",
-                text: data.content,
-                timestamp: new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                }),
-                reactions: {},
-                type: "received",
-                userId: selectedUserId,
-                userName: "Echo Server",
-                savedAt: new Date().toISOString(),
-              };
+          if (pending) {
+            updateMessage(pending.messageId, {
+              isOptimistic: false,
+              sendingIndicator: false,
+              sent: true,
+            });
 
-              addMessage(echoMessage);
-            }
+            pendingMessagesRef.current.delete(pendingMessageId);
+
+            setTimeout(() => {
+              saveMessages();
+            }, 100);
           }
-        },
 
-        onStatusChange: (connected) => {
-          setIsConnected(connected);
-          setConnectedUsersCount(webSocketManager.getConnectedUsersCount());
-
-          if (connected && messages.length <= 1) {
-            // Add welcome message when connected
-            const welcomeMsg = {
-              id: Date.now(),
-              sender: "System",
-              text: "Connected to WebSocket server. Messages will be echoed back.",
+          if (data.content && (data.sender !== "You" || data.echoed)) {
+            const echoMessage = {
+              id: Date.now() + Math.random(),
+              sender: "Echo Server",
+              text: data.content,
               timestamp: new Date().toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: true,
               }),
               reactions: {},
-              type: "system",
+              type: "received",
               userId: selectedUserId,
+              userName: "Echo Server",
               savedAt: new Date().toISOString(),
             };
 
-            if (
-              !messages.some(
-                (m) => m.type === "system" && m.text.includes("Connected")
-              )
-            ) {
-              addMessage(welcomeMsg);
-            }
+            addMessage(echoMessage);
+
+            setTimeout(() => {
+              saveMessages();
+            }, 100);
           }
-        },
-      };
+        }
+      },
 
-      // Subscribe to WebSocket
-      unsubscribe = webSocketManager.subscribe(selectedUserId, callbacks);
-    };
+      onStatusChange: (connected) => {
+        console.log(
+          `📡 Connection status: ${connected ? "Connected" : "Disconnected"}`
+        );
+        setIsConnected(connected);
+        setConnectedUsersCount(webSocketManager.getConnectedUsersCount());
 
-    setupWebSocket();
+        if (
+          connected &&
+          messages.filter((m) => m.type === "system").length === 0
+        ) {
+          const welcomeMsg = {
+            id: Date.now(),
+            sender: "System",
+            text: "Connected to WebSocket server. Your messages will be echoed back.",
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+            }),
+            reactions: {},
+            type: "system",
+            userId: selectedUserId,
+            savedAt: new Date().toISOString(),
+          };
 
-    // Cleanup on unmount or user change
+          addMessage(welcomeMsg);
+        }
+      },
+    });
+
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
       }
       pendingMessagesRef.current.clear();
     };
-  }, [selectedUserId, addMessage, updateMessage, messages]);
+  }, [selectedUserId, addMessage, updateMessage, messages, saveMessages]);
 
   const handleSendMessage = useCallback(
     (content) => {
       if (!content.trim() || !selectedUserId) {
-        console.log("Cannot send: missing content or user");
         return;
       }
 
       const messageId = Date.now();
+      console.log(`📤 Sending message: "${content}" (ID: ${messageId})`);
+
       const optimisticMessage = {
         id: messageId,
         sender: "You",
@@ -163,14 +169,12 @@ const MessageContainer = ({ selectedUserId, onUserSwitch, users }) => {
 
       addMessage(optimisticMessage);
 
-      // Store as pending
       pendingMessagesRef.current.set(messageId, {
         messageId,
         content,
         timestamp: new Date(),
       });
 
-      // Prepare message for WebSocket
       const messageData = {
         content: content,
         originalMessageId: messageId,
@@ -181,26 +185,27 @@ const MessageContainer = ({ selectedUserId, onUserSwitch, users }) => {
         timestamp: new Date().toISOString(),
       };
 
-      // Send via WebSocket
       const success = webSocketManager.send(
         JSON.stringify(messageData),
         selectedUserId
       );
 
       if (!success) {
-        // Mark as failed if couldn't send
         updateMessage(messageId, {
           sendingIndicator: false,
           isOptimistic: false,
-          text: `${content} (Failed to send - not connected)`,
-          type: "system",
+          text: `${content} (Failed to send - check connection)`,
+          failed: true,
         });
 
-        // Remove from pending
         pendingMessagesRef.current.delete(messageId);
+
+        setTimeout(() => {
+          saveMessages();
+        }, 100);
       }
     },
-    [selectedUserId, currentUser?.name, addMessage, updateMessage]
+    [selectedUserId, currentUser?.name, addMessage, updateMessage, saveMessages]
   );
 
   const handleClearChat = () => {
@@ -210,26 +215,29 @@ const MessageContainer = ({ selectedUserId, onUserSwitch, users }) => {
     }
   };
 
+  const getLocalUserId = useCallback(() => {
+    let storedId = localStorage.getItem("chat_local_user_id");
+    if (!storedId) {
+      storedId = `local_${Date.now()}_${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
+      localStorage.setItem("chat_local_user_id", storedId);
+    }
+    return storedId;
+  }, []);
+
   const handleAddReaction = useCallback(
     (messageId, emoji) => {
-      const getLocalUserId = () => {
-        let storedId = localStorage.getItem("chat_local_user_id");
-        if (!storedId) {
-          storedId = `local_${Date.now()}_${Math.random()
-            .toString(36)
-            .substr(2, 9)}`;
-          localStorage.setItem("chat_local_user_id", storedId);
-        }
-        return storedId;
-      };
-
       const localUserId = getLocalUserId();
       addReaction(messageId, emoji, localUserId);
+
+      setTimeout(() => {
+        saveMessages();
+      }, 100);
     },
-    [addReaction]
+    [addReaction, getLocalUserId, saveMessages]
   );
 
-  // Get connection status text
   const getConnectionStatus = () => {
     if (!selectedUserId) return "Select a user";
     if (!isConnected) return "Connecting...";
@@ -261,6 +269,7 @@ const MessageContainer = ({ selectedUserId, onUserSwitch, users }) => {
 
       <MessagesArea
         messages={messages}
+        localUserId={getLocalUserId()} 
         showEmojiPickerFor={showEmojiPickerFor}
         onToggleEmojiPicker={setShowEmojiPickerFor}
         onAddReaction={handleAddReaction}

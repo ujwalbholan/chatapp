@@ -5,7 +5,6 @@ export const useChat = () => {
   const [users, setUsers] = useState([]);
   const [isMobileView, setIsMobileView] = useState(false);
 
-  // Check mobile view
   useEffect(() => {
     const checkMobile = () => {
       setIsMobileView(window.innerWidth <= 768);
@@ -16,7 +15,6 @@ export const useChat = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Load users from localStorage
   const loadUsers = useCallback(() => {
     try {
       const savedData = localStorage.getItem("chat_messages_v3");
@@ -50,11 +48,11 @@ export const useChat = () => {
         setUsers(usersArray);
       }
     } catch (error) {
-      console.error("Failed to load users:", error);
+      return error;
     }
+
   }, []);
 
-  // Create new user
   const createNewUser = useCallback(() => {
     try {
       const newUserId = `user_${Date.now()}_${Math.random()
@@ -81,7 +79,6 @@ export const useChat = () => {
       allMessages.push(welcomeMessage);
       localStorage.setItem("chat_messages_v3", JSON.stringify(allMessages));
 
-      // Create new user object
       const newUser = {
         id: newUserId,
         name: userName,
@@ -91,15 +88,12 @@ export const useChat = () => {
         userName: userName,
       };
 
-      // Update users list
       setUsers((prev) => [newUser, ...prev]);
 
-      // Select the new user
       setSelectedUserId(newUserId);
 
       return newUser;
     } catch (error) {
-      console.error("Failed to create user:", error);
       return null;
     }
   }, []);

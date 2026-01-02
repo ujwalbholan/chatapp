@@ -1,37 +1,31 @@
-import { useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 
-export const useTypingEffect = (updateMessage) => {
-  const typingIntervalsRef = useRef({});
+export const useTypingIndicator = () => {
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
-  const startTypingEffect = useCallback((messageId, fullText) => {
-    // Clear any existing typing interval for this message
-    if (typingIntervalsRef.current[messageId]) {
-      clearInterval(typingIntervalsRef.current[messageId]);
+  const startTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
     }
 
-    let currentIndex = 0;
-    const typingSpeed = 50;
+    setIsTyping(true);
 
-    typingIntervalsRef.current[messageId] = setInterval(() => {
-      updateMessage(messageId, {
-        displayText: fullText.substring(0, currentIndex + 1),
-        isTypingEffect: true,
-      });
-      
-      currentIndex++;
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+    }, 2000);
+  }, []);
 
-      if (currentIndex >= fullText.length) {
-        clearInterval(typingIntervalsRef.current[messageId]);
-        delete typingIntervalsRef.current[messageId];
-        
-        updateMessage(messageId, {
-          text: fullText,
-          displayText: fullText,
-          isTypingEffect: false,
-        });
-      }
-    }, typingSpeed);
-  }, [updateMessage]);
+  const stopTyping = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    setIsTyping(false);
+  }, []);
 
-  return { startTypingEffect };
+  return {
+    isTyping,
+    startTyping,
+    stopTyping,
+  };
 };

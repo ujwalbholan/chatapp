@@ -14,6 +14,40 @@ export const useMessages = (selectedUserId, users, storageKey) => {
     });
   }, []);
 
+  useEffect(() => {
+    if (!selectedUserId || messages.length === 0 || isLoading) return;
+
+    const saveMessagesToStorage = () => {
+      try {
+        const savedData = localStorage.getItem(storageKey);
+        let allMessages = savedData ? JSON.parse(savedData) : [];
+
+        allMessages = allMessages.filter(
+          (msg) => msg.userId !== selectedUserId
+        );
+
+        const messagesToSave = messages
+          .filter((msg) => !msg.isOptimistic && !msg.sendingIndicator)
+          .map((msg) => ({
+            ...msg,
+            savedAt: msg.savedAt || new Date().toISOString(),
+          }));
+
+        allMessages = [...allMessages, ...messagesToSave];
+
+        if (allMessages.length > 1000) {
+          allMessages = allMessages.slice(-1000);
+        }
+
+        localStorage.setItem(storageKey, JSON.stringify(allMessages));
+      } catch (error) {
+        error
+      }
+    };
+
+    saveMessagesToStorage();
+  }, [messages, selectedUserId, storageKey, isLoading]);
+
   const loadMessages = useCallback(() => {
     if (!selectedUserId) {
       setMessages([]);
@@ -45,6 +79,7 @@ export const useMessages = (selectedUserId, users, storageKey) => {
         }));
 
         setMessages(formattedMessages);
+      
       } else {
         const welcomeMsg = {
           id: Date.now(),
@@ -58,32 +93,31 @@ export const useMessages = (selectedUserId, users, storageKey) => {
           savedAt: new Date().toISOString(),
         };
         setMessages([welcomeMsg]);
+      
       }
     } catch (error) {
-      console.error("Failed to load messages:", error);
-      const errorMsg = {
-        id: Date.now(),
-        sender: "System",
-        text: "Failed to load chat history.",
-        timestamp: formatTime(new Date()),
-        reactions: {},
-        type: "system",
-        userId: selectedUserId,
-        savedAt: new Date().toISOString(),
-      };
-      setMessages([errorMsg]);
+      error
     } finally {
       setIsLoading(false);
     }
   }, [selectedUserId, storageKey, formatTime, currentUser?.name]);
 
   const addMessage = useCallback((message) => {
-    setMessages((prev) => [...prev, message]);
+    setMessages((prev) => {
+      const newMessages = [...prev, message];
+      return newMessages;
+    });
   }, []);
 
   const updateMessage = useCallback((messageId, updates) => {
     setMessages((prev) =>
-      prev.map((msg) => (msg.id === messageId ? { ...msg, ...updates } : msg))
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          const updated = { ...msg, ...updates };
+          return updated;
+        }
+        return msg;
+      })
     );
   }, []);
 
@@ -112,7 +146,7 @@ export const useMessages = (selectedUserId, users, storageKey) => {
 
       setMessages([welcomeMsg]);
     } catch (error) {
-      console.error("Failed to clear chat:", error);
+      error;
     }
   }, [selectedUserId, storageKey, formatTime, currentUser?.name]);
 
@@ -140,7 +174,6 @@ export const useMessages = (selectedUserId, users, storageKey) => {
     );
   }, []);
 
-  // Auto-save messages when they change
   const saveMessages = useCallback(() => {
     if (!selectedUserId || messages.length === 0 || isLoading) return;
 
@@ -148,12 +181,10 @@ export const useMessages = (selectedUserId, users, storageKey) => {
       const savedData = localStorage.getItem(storageKey);
       let allMessages = savedData ? JSON.parse(savedData) : [];
 
-      // Remove old messages for this user
       allMessages = allMessages.filter((msg) => msg.userId !== selectedUserId);
 
-      // Add current messages (excluding optimistic ones)
       const messagesToSave = messages
-        .filter((msg) => !msg.isOptimistic)
+        .filter((msg) => !msg.isOptimistic && !msg.sendingIndicator)
         .map((msg) => ({
           ...msg,
           savedAt: msg.savedAt || new Date().toISOString(),
@@ -161,22 +192,16 @@ export const useMessages = (selectedUserId, users, storageKey) => {
 
       allMessages = [...allMessages, ...messagesToSave];
 
-      // Keep only last 1000 messages total
       if (allMessages.length > 1000) {
         allMessages = allMessages.slice(-1000);
       }
 
       localStorage.setItem(storageKey, JSON.stringify(allMessages));
+
     } catch (error) {
-      console.error("Failed to save messages:", error);
+      error
     }
   }, [selectedUserId, messages, storageKey, isLoading]);
-
-  // Save messages when they change (debounced)
-  useEffect(() => {
-    const timer = setTimeout(saveMessages, 500);
-    return () => clearTimeout(timer);
-  }, [saveMessages]);
 
   return {
     messages,

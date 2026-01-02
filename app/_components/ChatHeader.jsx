@@ -34,10 +34,17 @@ const ChatHeader = ({
           className="icon-btn"
           onClick={onSwitchUser}
           title="Back to users"
+          aria-label="Back to users"
         >
           ←
         </button>
-        <button className="icon-btn" onClick={onClearChat} title="Clear chat">
+        <button
+          className="icon-btn"
+          onClick={onClearChat}
+          title="Clear chat"
+          aria-label="Clear chat"
+          disabled={isLoading}
+        >
           🗑️
         </button>
       </div>

@@ -32,12 +32,12 @@
 }
 
 .connection-status.connected .status-indicator {
-  background: var(--primary);
+  background: #10b981;
   animation: pulse 2s infinite;
 }
 
 .connection-status.disconnected .status-indicator {
-  background: #ff5252;
+  background: #ef4444;
 }
 
 @keyframes pulse {
@@ -70,7 +70,7 @@
   transition: all 0.2s;
 }
 
-.icon-btn:hover {
+.icon-btn:hover:not(:disabled) {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
@@ -79,12 +79,6 @@
 .icon-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.icon-btn:disabled:hover {
-  background: var(--background);
-  color: var(--foreground);
-  border-color: var(--border);
 }
 
 .user-info {
